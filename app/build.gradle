@@ -1,16 +1,15 @@
-apply plugin: 'com.android.application'
+apply plugin: 'com.android.library'
 apply plugin: 'com.github.dcendents.android-maven'
 apply plugin: 'com.jfrog.bintray'
-// This is the library version used when deploying the artifact
-version = "1.0.0"
+version = "1.0.15"
 android {
     compileSdkVersion 24
     buildToolsVersion "24.0.1"
     resourcePrefix "alex for moonearly"
     defaultConfig {
-        applicationId "com.moonearly.utils"
+//        applicationId "com.moonearly.utils"
         minSdkVersion 14
-        targetSdkVersion 24
+        targetSdkVersion 20
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
@@ -25,9 +24,10 @@ android {
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
+
 }
-
-
+def siteUrl = 'https://github.com/Alex-Shao/TcpUdpFactory'      // 项目的主页
+def gitUrl = 'https://github.com/Alex-Shao/TcpUdpFactory.git'   // Git仓库的url
 group = "com.moonearly.utils"
 install {
     repositories.mavenInstaller {
@@ -61,12 +61,14 @@ install {
         }
     }
 }
+
 task sourcesJar(type: Jar) {
     from android.sourceSets.main.java.srcDirs
     classifier = 'sources'
 }
 task javadoc(type: Javadoc) {
     source = android.sourceSets.main.java.srcDirs
+//    options.encoding = "utf-8"
     classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
 }
 task javadocJar(type: Jar, dependsOn: javadoc) {
@@ -77,6 +79,7 @@ artifacts {
     archives javadocJar
     archives sourcesJar
 }
+
 Properties properties = new Properties()
 properties.load(project.rootProject.file('local.properties').newDataInputStream())
 bintray {

@@ -3,8 +3,6 @@ package com.moonearly.utils.service;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.alfred.customer.utils.LogUtil;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -59,7 +57,7 @@ public class TcpUdpFactory {
 		try {
 			mSocket = new ServerSocket(localTcpPort);
 		} catch (IOException e) {
-			LogUtil.e(TAG,e.getMessage().toString());
+			Log.e(TAG,e.getMessage().toString());
 			return;
 		}            
 		sTcpDaemonTask = new TcpDaemonRunnable();
@@ -80,7 +78,7 @@ public class TcpUdpFactory {
             try {
 				mSocket.close();
 			} catch (IOException e) {
-				LogUtil.w(TAG, e.getMessage().toString());
+				Log.w(TAG, e.getMessage().toString());
 			}
 		}
 	}
@@ -100,7 +98,7 @@ public class TcpUdpFactory {
 				mDSocket.bind(new InetSocketAddress(localUdpPort));
 			}
 		} catch (IOException e) {
-			LogUtil.e(TAG, "new DatagramSocket FAIL"+e.getMessage().toString());
+			Log.e(TAG, "new DatagramSocket FAIL"+e.getMessage().toString());
 			return;
 		}     
 		sUdpDaemonTask = new UdpDaemonRunnable();
@@ -129,47 +127,48 @@ public class TcpUdpFactory {
 			done=true;
 		}
         public void run() {
-        	byte  []readbuff = new byte[MAX_BUFFER_LEN];
-        	byte  []buffer = new byte[MAX_BUFFER_LEN];
-        	int   data_total_len = 0;
-        	
             while (!done) {
             	Socket s;
             	
 				try {
 					s = mSocket.accept();
 					InputStream in = s.getInputStream();
-					int readlen = in.read(readbuff);						
-            		if(readlen < 1)
-            		{
-            			try {
-							Thread.sleep(200);//等待数据传输完成
-						} catch (InterruptedException e) {
+					int len = MAX_BUFFER_LEN;
+					byte[] readbuff = new byte[len];
+					StringBuffer sb = new StringBuffer();
+					try {
+						int lon = in.available();
+						Log.d(TAG, "数据长度"+lon);
+						Thread.sleep(lon/102400);//等待数据传输完成
+					} catch (InterruptedException e) {
+					}
+					while ((len = in.read(readbuff, 0, len)) != -1) {
+						if(len < MAX_BUFFER_LEN){
+							byte[] tmpBuf = new byte[len];
+							System.arraycopy(readbuff, 0, tmpBuf, 0, len);
+							sb.append(new String(tmpBuf, S_ENCODING));
+						}else{
+							sb.append(new String(readbuff, S_ENCODING));
 						}
-            			readlen = in.read(readbuff);
-            			if(readlen < 1)
-                		{
-            				continue;
-                		}
-						LogUtil.i(TAG, String.format("1延时后读取长度=%d", readlen));
-            		}
-            		String fromip = s.getInetAddress().getHostAddress();
-            		String utf8code = new String(readbuff,0,readlen,S_ENCODING);
+					}
+
+					String fromip = s.getInetAddress().getHostAddress();
+            		String utf8code = sb.toString();
 					if(jsonCallBack != null){
 						jsonCallBack.call(utf8code);
 					}
 				} catch (IOException e1) {
 					if(!done) {
-						LogUtil.w(TAG, "TcpDaemonTask 异常"+e1.getMessage().toString());
+						Log.w(TAG, "TcpDaemonTask 异常"+e1.getMessage().toString());
 						try {
 							mSocket.close();
 						} catch (IOException e0) {
-							LogUtil.w(TAG, "mSocket.close 异常"+e0.getMessage().toString());
+							Log.w(TAG, "mSocket.close 异常"+e0.getMessage().toString());
 						}
 						try {
 							mSocket = new ServerSocket(localTcpPort);
 						} catch (IOException e2) {
-							LogUtil.e(TAG, "new ServerSocket 异常"+e2.getMessage().toString());
+							Log.e(TAG, "new ServerSocket 异常"+e2.getMessage().toString());
 						}
 					}
 				}  
@@ -212,14 +211,14 @@ public class TcpUdpFactory {
 					}
 				} catch (IOException e1) {
 					if (!done) {
-						LogUtil.w(TAG, "发生异常" + e1.getMessage().toString()+",正在尝试重新启动第"+reConnect);
+						Log.w(TAG, "发生异常" + e1.getMessage().toString()+",正在尝试重新启动第"+reConnect);
 						if (reConnect++ < 10) {
 							try {
 								mDSocket.close();
 								mDSocket = new DatagramSocket(localUdpPort);
 								mDSocket.setBroadcast(true);
 							} catch (IOException e2) {
-								LogUtil.e(TAG, "重新启动发生异常" + e2.getMessage().toString());
+								Log.e(TAG, "重新启动发生异常" + e2.getMessage().toString());
 							}
 						}
 					}
@@ -240,7 +239,7 @@ public class TcpUdpFactory {
 					if(udpSendCallBack != null)
 						udpSendCallBack.call(true);
 				}catch (Exception e) {
-					LogUtil.w(TAG, "udpSend 异常"+e.getMessage().toString());
+					Log.w(TAG, "udpSend 异常"+e.getMessage().toString());
 					udpSendCallBack.call(false);
 				}
 			}
@@ -270,7 +269,7 @@ public class TcpUdpFactory {
 						tcpSendCallBack.call(true);
 					}
 				} catch (IOException e) {
-					LogUtil.w(TAG, "tcpSend fail"+e.getMessage().toString());
+					Log.w(TAG, "tcpSend fail"+e.getMessage().toString());
 					if(tcpSendCallBack != null){
 						tcpSendCallBack.call(false);
 					}
@@ -280,7 +279,7 @@ public class TcpUdpFactory {
 	}
 
 
-	private static void tcpSend(final int index, final String strMsg, final TcpSendCallBack tcpSendCallBack) {
+	public static void tcpSend(final int index, final String strMsg, final TcpSendCallBack tcpSendCallBack) {
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
@@ -312,4 +311,10 @@ public class TcpUdpFactory {
 		udpSend("255.255.255.255", UDP_SERVER_PORT_DEFAULT + index, UDP_ACK_IP.getBytes(), udpSendCallBack);
 	}
 
+	public static void sendUdpMsg(int index, String msg, UdpSendCallBack udpSendCallBack){
+		udpSend("255.255.255.255", UDP_SERVER_PORT_DEFAULT + index, msg.getBytes(), udpSendCallBack);
+	}
+	public static void sendUdpMsg(String ip, int index, String msg, UdpSendCallBack udpSendCallBack){
+		udpSend(ip, UDP_SERVER_PORT_DEFAULT + index, msg.getBytes(), udpSendCallBack);
+	}
 }
