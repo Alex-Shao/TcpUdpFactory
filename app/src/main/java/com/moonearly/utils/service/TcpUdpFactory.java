@@ -3,6 +3,8 @@ package com.moonearly.utils.service;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.moonearly.model.UdpMsg;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -36,6 +38,7 @@ public class TcpUdpFactory {
 
 	private static final String UDP_ACK_IP ="Please give me your IP address";
 	private static final String UDP_REQUEST_IP ="My IP address is ...";
+	private static final String UDP_REQUEST_MSG ="My MSG is ...";
 
 	public  static String S_ENCODING   = "UTF-8";
 	public  static final int CONNECT_TIMEOUT   = 4000;
@@ -88,7 +91,7 @@ public class TcpUdpFactory {
 	 *启动udp服务器
 	 * @param index  主机编号
      */
-	public static void startUdpServer(int index) {
+	public static void startUdpServer(int index, String revenueCenterName,UdpServiceCallBack udpServiceCallBack) {
 		localUdpPort = UDP_SERVER_PORT_DEFAULT + index;
 		try {
 			if (mDSocket == null) {
@@ -101,9 +104,9 @@ public class TcpUdpFactory {
 			Log.e(TAG, "new DatagramSocket FAIL"+e.getMessage().toString());
 			return;
 		}     
-		sUdpDaemonTask = new UdpDaemonRunnable();
+		sUdpDaemonTask = new UdpDaemonRunnable(udpServiceCallBack);
 		Thread udprecThread = new Thread(sUdpDaemonTask);
-		udprecThread.setName("UDP_server");
+		udprecThread.setName(revenueCenterName);
         udprecThread.setPriority(Thread.MAX_PRIORITY-2);
 		udprecThread.start();
 	}
@@ -132,6 +135,7 @@ public class TcpUdpFactory {
             	
 				try {
 					s = mSocket.accept();
+					s.setSoTimeout(5000);
 					InputStream in = s.getInputStream();
 					int len = MAX_BUFFER_LEN;
 					byte[] readbuff = new byte[len];
@@ -180,6 +184,11 @@ public class TcpUdpFactory {
 
 	private static class UdpDaemonRunnable implements Runnable {
 		private boolean done = false;
+		private UdpServiceCallBack udpServiceCallBack;
+
+		public UdpDaemonRunnable(UdpServiceCallBack udpServiceCallBack) {
+			this.udpServiceCallBack = udpServiceCallBack;
+		}
 
 		public void stop() {
 			done = true;
@@ -205,9 +214,21 @@ public class TcpUdpFactory {
 						//终端请求我的IP地址
 						Log.d(TAG, String.format("主机编号:%d,ip:%s,请求我的Ip,正在回复...", index, fromip));
 						udpSend(packet.getAddress().getHostAddress(), packet.getPort(), UDP_REQUEST_IP.getBytes(), null);
+//						udpSend(packet.getAddress().getHostAddress(), packet.getPort(), (UDP_REQUEST_MSG + Thread.currentThread().getName().toString()).getBytes(), null);
+					}else if(msg.startsWith(UDP_REQUEST_MSG)){
+						ipMap.put(index, fromip);
+						Log.d(TAG, String.format("主机编号:%d,告诉我msg:%s", index, msg));
+						if(udpServiceCallBack != null) {
+							UdpMsg udpMsg = new UdpMsg(packet.getAddress().getHostAddress(), msg.replace(UDP_REQUEST_MSG, ""));
+							udpServiceCallBack.callBack(udpMsg);
+						}
 					}else if(msg.contains(UDP_REQUEST_IP)){
 						ipMap.put(index, fromip);
 						Log.d(TAG, String.format("主机编号:%d,告诉我他的ip为:%s,正在回复...", index, fromip));
+						if(udpServiceCallBack != null) {
+							UdpMsg udpMsg = new UdpMsg(packet.getAddress().getHostAddress(), msg);
+							udpServiceCallBack.callBack(udpMsg);
+						}
 					}
 				} catch (IOException e1) {
 					if (!done) {
@@ -240,7 +261,8 @@ public class TcpUdpFactory {
 						udpSendCallBack.call(true);
 				}catch (Exception e) {
 					Log.w(TAG, "udpSend 异常"+e.getMessage().toString());
-					udpSendCallBack.call(false);
+					if(udpSendCallBack != null)
+						udpSendCallBack.call(false);
 				}
 			}
 		}).start();
