@@ -38,7 +38,7 @@ public class TcpUdpFactory {
 
 	private static final String UDP_ACK_IP ="Please give me your IP address";
 	private static final String UDP_REQUEST_IP ="My IP address is ...";
-	private static final String UDP_REQUEST_MSG ="My MSG is ...";
+	public static final String UDP_REQUEST_MSG ="My MSG is ...";
 
 	public  static String S_ENCODING   = "UTF-8";
 	public  static final int CONNECT_TIMEOUT   = 4000;
@@ -213,20 +213,20 @@ public class TcpUdpFactory {
 						ipMap.put(index, fromip);
 						//终端请求我的IP地址
 						Log.d(TAG, String.format("主机编号:%d,ip:%s,请求我的Ip,正在回复...", index, fromip));
-						udpSend(packet.getAddress().getHostAddress(), packet.getPort(), UDP_REQUEST_IP.getBytes(), null);
+						udpSend(packet.getAddress().getHostAddress(), packet.getPort(), (UDP_REQUEST_IP +Thread.currentThread().getName().toString()).getBytes(), null);
 //						udpSend(packet.getAddress().getHostAddress(), packet.getPort(), (UDP_REQUEST_MSG + Thread.currentThread().getName().toString()).getBytes(), null);
 					}else if(msg.startsWith(UDP_REQUEST_MSG)){
 						ipMap.put(index, fromip);
 						Log.d(TAG, String.format("主机编号:%d,告诉我msg:%s", index, msg));
 						if(udpServiceCallBack != null) {
-							UdpMsg udpMsg = new UdpMsg(packet.getAddress().getHostAddress(), msg.replace(UDP_REQUEST_MSG, ""));
+							UdpMsg udpMsg = new UdpMsg(packet.getAddress().getHostAddress(), msg.replace(UDP_REQUEST_MSG, ""), 2);
 							udpServiceCallBack.callBack(udpMsg);
 						}
 					}else if(msg.contains(UDP_REQUEST_IP)){
 						ipMap.put(index, fromip);
 						Log.d(TAG, String.format("主机编号:%d,告诉我他的ip为:%s,正在回复...", index, fromip));
 						if(udpServiceCallBack != null) {
-							UdpMsg udpMsg = new UdpMsg(packet.getAddress().getHostAddress(), msg);
+							UdpMsg udpMsg = new UdpMsg(packet.getAddress().getHostAddress(), msg.replace(UDP_REQUEST_IP, ""), 1);
 							udpServiceCallBack.callBack(udpMsg);
 						}
 					}
